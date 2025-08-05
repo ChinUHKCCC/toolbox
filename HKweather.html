@@ -58,10 +58,28 @@
   <script>
     // Map warning codes to legend image URLs
     const legendImages = {
+      "WHOT": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/vhot.gif",
       "WRAINR": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/rainr.gif",
       "WRAINA": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/raina.gif",
       "WRAINB": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/rainb.gif",
-      "WTS": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/ts.gif"
+      "TC1": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc1.gif",
+      "TC3": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc3.gif",
+      "TC8SE": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc8b.gif",
+      "TC8SW": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc8c.gif",
+      "TC8NE": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc8ne.gif",
+      "TC8NW": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc8d.gif",
+      "TC9": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc9.gif",
+      "TC10": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tc10.gif",
+      "WTS": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/ts.gif",
+      "WFNTSA": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/ntfl.gif",
+      "WL": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/landslip.gif",
+      "WCOLD": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/cold.gif",
+      "WMSGNL": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/sms.gif",
+      "WFROST": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/frost.gif",
+      "WFIRER": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/firer.gif",
+      "WFIREY": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/firey.gif",
+      "WTMW": "https://www.hko.gov.hk/tc/wxinfo/dailywx/images/tsunami-warn.gif"
+
     };
 
     function formatTime(timeStr) {
