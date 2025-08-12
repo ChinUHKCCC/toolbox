@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>飛行棋（彩色格 + 擲骰動畫）</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --muted:#6b7280;
+    --white:#ffffff;
+    --tileStroke:#94a3b8;
+    --center:#f3f4f6;
+
+    --red:#e74c3c;
+    --yellow:#f1c40f;
+    --green:#27ae60;
+    --blue:#3498db;
+
+    --red-soft:#f9d3cf;
+    --yellow-soft:#f9efbf;
+    --green-soft:#cfeee0;
+    --blue-soft:#cfe6f9;
+
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--white); font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif;
+  }
+
+  .wrap{
+    max-width: 1100px; margin: 0 auto; padding: 16px;
+  }
+
+  header{
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    justify-content: space-between; margin-bottom: 12px;
+  }
+
+  .title{
+    display:flex; align-items:center; gap:10px;
+  }
+  .title h1{ font-size: 20px; margin:0; font-weight:700; }
+  .subtitle{ font-size:12px; color:var(--muted); }
+
+  .controls{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    background:var(--panel); padding:10px; border-radius:12px;
+    box-shadow: var(--shadow);
+  }
+
+  .controls label{ font-size:13px; color:var(--muted); }
+  .controls select, .controls button{
+    background:#0b1220; color:var(--white);
+    border:1px solid #1f2937; border-radius:10px; padding:8px 10px;
+    font-size:14px;
+  }
+  .controls button{
+    background: linear-gradient(180deg,#1f2937,#0b1220);
+    cursor:pointer; transition:.15s transform ease;
+  }
+  .controls button:hover:not(:disabled){ transform: translateY(-1px); }
+  .controls button:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .status{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin-top: 8px;
+  }
+  .pill{
+    font-size:13px; padding:6px 10px; border-radius:999px;
+    background: #0b1220; border:1px solid #1f2937; color:var(--muted);
+  }
+  .pill .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:-1px; }
+
+  .dice-btn{
+    display:flex; align-items:center; gap:10px;
+    background: linear-gradient(180deg,#374151,#111827);
+    border:1px solid #374151; color:#fff; padding:10px 14px;
+    border-radius:12px; cursor:pointer; font-weight:700;
+    box-shadow: var(--shadow);
+  }
+  .dice-btn:disabled{ opacity:.6; cursor:not-allowed; }
+  .dice{
+    width:32px; height:32px; background:#fff; color:#111; border-radius:8px;
+    display:grid; place-items:center; font-weight:800; font-size:16px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.2);
+    will-change: transform;
+  }
+  @keyframes rollSpin {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.05); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  .dice.rolling{
+    animation: rollSpin 0.6s linear infinite;
+  }
+
+  .board-card{
+    margin-top:14px; background:var(--panel); border-radius:16px; padding:10px;
+    box-shadow: var(--shadow);
+  }
+
+  .board-wrap{
+    width:100%; max-width: 900px; margin: 0 auto;
+  }
+
+  .legend{
+    display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--muted);
+  }
+  .legend .chip{
+    display:flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #1f2937; border-radius:999px; background:#0b1220;
+  }
+  .legend .swatch{ width:12px; height:12px; border-radius:50%; }
+
+  /* Token styles */
+  .token{
+    cursor: pointer;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .token.selectable{
+    filter: drop-shadow(0 0 6px rgba(255,255,255,.7)) saturate(1.1);
+    transform: scale(1.06);
+  }
+  .token.disabled{ cursor: default; opacity:.6; }
+
+  /* Tooltip / toast */
+  .toast{
+    position: fixed; left:50%; transform: translateX(-50%);
+    bottom: 16px; background: rgba(17,24,39,.9); color:#fff;
+    padding:10px 14px; border-radius:10px; font-size:13px;
+    border:1px solid #374151; z-index: 9999; pointer-events:none;
+  }
+
+  /* Responsive tweaks */
+  @media (max-width: 480px){
+    header{ gap:8px; }
+    .title h1{ font-size:18px; }
+    .dice{ width:28px; height:28px; font-size:14px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>飛行棋</h1>
+        <div class="subtitle">彩色格跳躍 · 擲骰動畫 · 本機多人</div>
+      </div>
+      <div class="controls">
+        <label for="playerCount">玩家數</label>
+        <select id="playerCount" aria-label="玩家數">
+          <option value="2">2 位</option>
+          <option value="3">3 位</option>
+          <option value="4" selected>4 位</option>
+        </select>
+        <button id="newGameBtn">重新開始</button>
+        <button id="rollBtn" class="dice-btn">
+          <div class="dice" id="diceFace" aria-live="polite">?</div>
+          擲骰子
+        </button>
+      </div>
+    </header>
+
+    <div class="status" id="statusBar">
+      <span class="pill"><span class="dot" id="turnDot"></span>目前玩家：<b id="turnName">—</b></span>
+      <span class="pill" id="infoPill">請按「擲骰子」開始</span>
+    </div>
+
+    <div class="board-card">
+      <div class="board-wrap">
+        <svg id="board" viewBox="0 0 1000 1000" width="100%" height="100%" role="img" aria-label="飛行棋棋盤">
+          <defs>
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
+            </filter>
+          </defs>
+          <rect x="0" y="0" width="1000" height="1000" fill="#0b1220"></rect>
+
+          <!-- 棋盤群組 -->
+          <g id="tiles"></g>
+          <g id="homePaths"></g>
+          <g id="bases"></g>
+          <g id="centerMark"></g>
+          <g id="tokens"></g>
+          <g id="touchLayer"></g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span class="chip"><span class="swatch" style="background: var(--red)"></span>紅</span>
+        <span class="chip"><span class="swatch" style="background: var(--yellow)"></span>黃</span>
+        <span class="chip"><span class="swatch" style="background: var(--green)"></span>綠</span>
+        <span class="chip"><span class="swatch" style="background: var(--blue)"></span>藍</span>
+        <span class="chip">起飛：骰到 1 或 6</span>
+        <span class="chip">彩色格：停在本色即自動跳到下一個同色格（僅一次；不進終點跑道）</span>
+        <span class="chip">擲到 6：可再擲一次（連 3 個 6 作廢）</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" style="display:none;"></div>
+
+<script>
+(function(){
+  // 基本設定
+  const COLORS = [
+    { key: 'red',    name:'紅',    hex: getCSS('--red'),    soft: getCSS('--red-soft') },
+    { key: 'yellow', name:'黃',    hex: getCSS('--yellow'), soft: getCSS('--yellow-soft') },
+    { key: 'green',  name:'綠',    hex: getCSS('--green'),  soft: getCSS('--green-soft') },
+    { key: 'blue',   name:'藍',    hex: getCSS('--blue'),   soft: getCSS('--blue-soft') },
+  ];
+
+  const RING_COUNT = 52;
+  const HOME_LEN = 6; // 進終點跑道長度
+  const ENTRY_INDEX = [0, 13, 26, 39]; // 各色起點在主圈的索引
+  const SAFE_INDICES = new Set(ENTRY_INDEX); // 安全格：起點
+  const JUMP_STEPS = 4; // 同色格之間間隔（四色循環）
+
+  // 幾何設定
+  const CX = 500, CY = 500;       // 中心
+  const R_OUT = 380;              // 主圈半徑
+  const TILE = 34;                // 格子（顯示）尺寸
+  const TOKEN_R = 12;             // 棋子半徑
+  const HOME_INNER_PAD = 16;      // 跑道內縮
+  const BASE_R = 455;             // 機庫中心圓半徑（放 4 格）
+  const ANIM_STEP_MS = 120;       // 移動動畫步長
+
+  // DOM
+  const svg = document.getElementById('board');
+  const tilesG = document.getElementById('tiles');
+  const homeG = document.getElementById('homePaths');
+  const basesG = document.getElementById('bases');
+  const centerG = document.getElementById('centerMark');
+  const tokensG = document.getElementById('tokens');
+
+  const rollBtn = document.getElementById('rollBtn');
+  const diceFace = document.getElementById('diceFace');
+  const newGameBtn = document.getElementById('newGameBtn');
+  const playerCountSel = document.getElementById('playerCount');
+  const turnDot = document.getElementById('turnDot');
+  const turnName = document.getElementById('turnName');
+  const infoPill = document.getElementById('infoPill');
+  const toastEl = document.getElementById('toast');
+
+  // 狀態
+  let game = null;
+
+  // 幾何座標生成
+  const ringPos = Array.from({length: RING_COUNT}, (_,i) => {
+    const angle = ((-90 + (360 / RING_COUNT) * i) * Math.PI) / 180;
+    return { x: CX + R_OUT * Math.cos(angle), y: CY + R_OUT * Math.sin(angle), angle };
+  });
+
+  const homePos = COLORS.map((c, p) => {
+    const startIdx = ENTRY_INDEX[p];
+    const start = ringPos[startIdx];
+    const step = (R_OUT - 80) / (HOME_LEN + 1);
+    const arr = [];
+    for(let i=1;i<=HOME_LEN;i++){
+      const r = R_OUT - i*step - HOME_INNER_PAD;
+      arr.push({ x: CX + r * Math.cos(start.angle + Math.PI), y: CY + r * Math.sin(start.angle + Math.PI) });
+    }
+    return arr; // [0..5]
+  });
+
+  const baseSlots = COLORS.map((c, p) => {
+    const ang = ringPos[ENTRY_INDEX[p]].angle;
+    const bx = CX + BASE_R * Math.cos(ang);
+    const by = CY + BASE_R * Math.sin(ang);
+    const grid = [];
+    const gap = 26;
+    for(let r=-1;r<=0;r++){
+      for(let q=-1;q<=0;q++){
+        grid.push({ x: bx + q*gap, y: by + r*gap });
+      }
+    }
+    return grid; // 4 slots
+  });
+
+  // UI 繪製靜態元素
+  drawBoard();
+
+  // 遊戲初始化
+  newGame();
+
+  // 事件
+  rollBtn.addEventListener('click', onRoll);
+  newGameBtn.addEventListener('click', newGame);
+  playerCountSel.addEventListener('change', newGame);
+
+  // 主要函式
+  function newGame(){
+    const n = Number(playerCountSel.value);
+    const players = COLORS.slice(0, n).map((c,i) => ({
+      id: i, color: c.hex, soft: c.soft, name: c.name, entry: ENTRY_INDEX[i]
+    }));
+    game = {
+      players,
+      current: 0,
+      dice: null,
+      canRoll: true,
+      selecting: false,
+      extraRollsInTurn: 0, // 累積連續 6
+      tokens: [], // 全部棋子
+      winner: null,
+      moving: false,
+      turnCount: 0
+    };
+    // 建立每位玩家的 4 架飛機
+    players.forEach(p=>{
+      for(let k=0;k<4;k++){
+        game.tokens.push({
+          pid: p.id,
+          tid: k,
+          progress: 0, // 0=機庫; 1..52主圈; 53..58本色入場; 58=終點
+        });
+      }
+    });
+    drawBoard(); // 重畫靜態
+    renderTokens(); // 畫棋子
+    updateStatus('請按「擲骰子」開始');
+    diceFace.textContent = '?';
+    setTurnIndicator();
+    enableRoll(true);
+    showToast('遊戲開始！紅方先手（或玩家 1）');
+  }
+
+  async function onRoll(){
+    if(!game || !game.canRoll || game.moving || game.winner) return;
+    enableRoll(false);
+
+    // 擲骰動畫
+    const val = await animateDiceRoll();
+    game.dice = val;
+
+    // 判斷可動棋子
+    const legal = getLegalMoves(game.current, val);
+    if(legal.length === 0){
+      updateStatus(`沒有可動的棋子，回合結束`);
+      if(val === 6){
+        game.extraRollsInTurn++;
+        if(game.extraRollsInTurn >= 3){
+          updateStatus('連續第三次擲出 6，作廢並換手');
+        }
+      }
+      endTurn();
+      return;
+    }
+    // 高亮可選
+    highlightSelectable(legal);
+    game.selecting = true;
+    game.canRoll = false;
+    updateStatus(`擲到 ${val}，請點選要移動的棋子`);
+  }
+
+  function getLegalMoves(pid, dice){
+    const tokens = game.tokens.filter(t=>t.pid===pid);
+    const moves = [];
+    for(const t of tokens){
+      if(canMoveToken(t, dice)) moves.push(t);
+    }
+    return moves;
+  }
+
+  function canMoveToken(token, dice){
+    // 起飛條件：1 或 6
+    if(token.progress === 0){
+      return (dice === 1 || dice === 6);
+    }
+    // 在主圈
+    if(token.progress >= 1 && token.progress <= 52){
+      const nextProg = token.progress + dice;
+      return nextProg <= 52 + HOME_LEN; // 進入跑道也可
+    }
+    // 在入場跑道
+    if(token.progress >= 53 && token.progress <= 58){
+      const next = token.progress + dice;
+      return next <= 58; // 必須剛好到終點
+    }
+    return false;
+  }
+
+  function highlightSelectable(legalTokens){
+    // 清除既有互動
+    Array.from(tokensG.querySelectorAll('.token')).forEach(el=>{
+      el.classList.remove('selectable'); el.onclick = null;
+    });
+    // 標記
+    for(const t of legalTokens){
+      const node = getTokenNode(t);
+      if(node){
+        node.classList.add('selectable');
+        node.onclick = ()=> {
+          if(game.moving) return;
+          moveToken(t, game.dice);
+        };
+      }
+    }
+  }
+
+  function getTokenNode(token){
+    return document.getElementById(tokenDomId(token));
+  }
+  function tokenDomId(token){
+    return `token_${token.pid}_${token.tid}`;
+  }
+
+  async function moveToken(token, dice){
+    if(game.moving) return;
+    game.moving = true;
+    game.selecting = false;
+
+    // 清除互動
+    Array.from(tokensG.querySelectorAll('.token')).forEach(el=>{
+      el.classList.remove('selectable'); el.onclick = null;
+    });
+
+    // 動畫逐步移動
+    if(token.progress === 0 && (dice === 1 || dice === 6)){
+      // 起飛：進入 progress=1（即從自家 entry 出發）
+      token.progress = 1;
+      await animateMove(token, 0);
+    } else {
+      const steps = dice;
+      for(let s=0;s<steps;s++){
+        token.progress += 1;
+        await animateMove(token, ANIM_STEP_MS);
+      }
+    }
+
+    // 跳躍、吃子、勝利判定
+    await afterMoveResolve(token);
+
+    // 擲到 6 可再擲（維持原規則）
+    if(game.dice === 6){
+      game.extraRollsInTurn++;
+      if(game.extraRollsInTurn >= 3){
+        showToast('連續第三次擲出 6，本次作廢並結束回合');
+        game.extraRollsInTurn = 0;
+        endTurn();
+        return;
+      } else {
+        updateStatus('擲到 6，可再擲一次');
+        enableRoll(true);
+        game.moving = false;
+        return;
+      }
+    }
+
+    // 結束回合
+    endTurn();
+  }
+
+  async function animateMove(token, delayMs){
+    renderTokens();
+    if(delayMs) await wait(delayMs);
+  }
+
+  async function afterMoveResolve(movedToken){
+    // 1) 彩色格跳躍：只在主圈上，且只跳一次，不跳進終點跑道（>52）
+    if(movedToken.progress >=1 && movedToken.progress <=52){
+      const ringIdx = ringIndexOf(movedToken);
+      const tileColorIdx = ringIdx % COLORS.length;
+      if(tileColorIdx === movedToken.pid){
+        if(movedToken.progress + JUMP_STEPS <= 52){
+          showToast(`${COLORS[movedToken.pid].name}色格加速！跳到下一個同色格`);
+          for(let s=0;s<JUMP_STEPS;s++){
+            movedToken.progress += 1;
+            await animateMove(movedToken, Math.max(60, ANIM_STEP_MS * 0.6));
+          }
+        }
+      }
+    }
+
+    // 2) 吃子（主圈且非安全格）
+    if(movedToken.progress >=1 && movedToken.progress <=52){
+      const pid = movedToken.pid;
+      const myRingIndex = ringIndexOf(movedToken);
+      if(!SAFE_INDICES.has(myRingIndex)){
+        const victims = game.tokens.filter(t=>{
+          if(t===movedToken) return false;
+          if(t.progress>=1 && t.progress<=52 && ringIndexOf(t)===myRingIndex && t.pid!==pid){
+            return true;
+          }
+          return false;
+        });
+        if(victims.length>0){
+          victims.forEach(v=> v.progress = 0); // 送回機庫
+          renderTokens();
+          showToast(`吃子！將 ${victims.length} 架對手飛機送回機庫`);
+          await wait(250);
+        }
+      }
+    }
+
+    // 3) 勝利判定
+    const myTokens = game.tokens.filter(t=>t.pid===movedToken.pid);
+    const allHome = myTokens.every(t=>t.progress===58);
+    if(allHome){
+      game.winner = movedToken.pid;
+      renderTokens();
+      showToast(`玩家「${COLORS[movedToken.pid].name}」全部到家！恭喜獲勝！`);
+      updateStatus(`玩家「${COLORS[movedToken.pid].name}」獲勝。按「重新開始」再玩一局`);
+      enableRoll(false);
+    }
+  }
+
+  function endTurn(){
+    game.moving = false;
+    game.canRoll = true;
+    game.selecting = false;
+    game.dice = null;
+    diceFace.textContent = '?';
+    game.extraRollsInTurn = 0;
+    game.current = (game.current + 1) % game.players.length;
+    setTurnIndicator();
+    updateStatus('輪到你了，請擲骰子');
+    // 修正點：切換到下一位後，重新啟用擲骰按鈕
+    enableRoll(true);
+  }
+
+  function ringIndexOf(token){
+    // 轉成主圈索引（0..51）
+    const entry = ENTRY_INDEX[token.pid];
+    const prog = token.progress; // 1..52
+    const idx = (entry + (prog - 1)) % RING_COUNT;
+    return idx;
+  }
+
+  function setTurnIndicator(){
+    const p = game.players[game.current];
+    turnDot.style.background = p.color;
+    turnName.textContent = p.name;
+  }
+
+  function updateStatus(msg){
+    infoPill.textContent = msg;
+  }
+
+  function enableRoll(on){
+    rollBtn.disabled = !on || !!game?.winner;
+    game.canRoll = !!on;
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.style.display = 'block';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>{ toastEl.style.display='none'; }, 2000);
+  }
+
+  async function animateDiceRoll(){
+    diceFace.classList.add('rolling');
+    const duration = 700;
+    const tick = 80;
+    let last = 1;
+    const iv = setInterval(()=>{
+      last = Math.floor(Math.random()*6)+1;
+      diceFace.textContent = String(last);
+    }, tick);
+    await wait(duration);
+    clearInterval(iv);
+    diceFace.classList.remove('rolling');
+    const final = Math.floor(Math.random()*6)+1;
+    diceFace.textContent = String(final);
+    return final;
+  }
+
+  function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  // 視覺繪製
+  function drawBoard(){
+    // 清空
+    tilesG.innerHTML = '';
+    homeG.innerHTML = '';
+    basesG.innerHTML = '';
+    centerG.innerHTML = '';
+
+    // 主圈格子（四色循環上色）
+    for(let i=0;i<RING_COUNT;i++){
+      const p = ringPos[i];
+      const isSafe = SAFE_INDICES.has(i);
+      const colorIdx = i % COLORS.length; // 0..3
+      const baseHex = COLORS[colorIdx].hex;
+      const softHex = COLORS[colorIdx].soft;
+
+      const fill = lighten(softHexToHex(softHex), isSafe ? 0.55 : 0.78);
+      const stroke = baseHex;
+      const r = TILE/2;
+
+      const rect = svgRect(p.x - r, p.y - r, TILE, TILE, 7, 7, {
+        fill, stroke, 'stroke-width': isSafe ? 3 : 1.5, opacity: 0.98
+      });
+      tilesG.appendChild(rect);
+
+      // 小刻度
+      const label = svgText(String(i+1), p.x, p.y + 4, {
+        'font-size': 10, 'text-anchor':'middle', 'fill':'#475569'
+      });
+      tilesG.appendChild(label);
+    }
+
+    // 入場跑道
+    game?.players?.forEach?.((pl)=>{
+      const pid = pl.id;
+      const path = homePos[pid];
+      for(let i=0;i<HOME_LEN;i++){
+        const p = path[i];
+        const r = TILE/2;
+        const rect = svgRect(p.x - r, p.y - r, TILE, TILE, 8, 8, {
+          fill: lighten(COLORS[pid].hex, 0.65), stroke: COLORS[pid].hex, 'stroke-width': 2
+        });
+        homeG.appendChild(rect);
+
+        if(i===HOME_LEN-1){
+          // 終點 裝飾
+          const star = svgCircle(p.x, p.y, 6, { fill: COLORS[pid].hex, opacity: 0.9 });
+          homeG.appendChild(star);
+        }
+      }
+    });
+
+    // 中心
+    const center = svgCircle(CX, CY, 60, { fill: getCSS('--center'), stroke:'#d1d5db', 'stroke-width':2, filter:'url(#softShadow)' });
+    centerG.appendChild(center);
+    const title = svgText('終點', CX, CY+4, { 'text-anchor':'middle', 'font-size': 14, 'font-weight':'700', fill:'#111827' });
+    centerG.appendChild(title);
+
+    // 機庫
+    COLORS.slice(0, Number(playerCountSel.value)).forEach((c, pid)=>{
+      const pts = baseSlots[pid];
+      const ang = ringPos[ENTRY_INDEX[pid]].angle;
+      const bx = CX + (BASE_R+4) * Math.cos(ang);
+      const by = CY + (BASE_R+4) * Math.sin(ang);
+      const rect = svgRect(bx-48, by-48, 96, 96, 12, 12, {
+        fill: 'rgba(255,255,255,0.03)', stroke: c.hex, 'stroke-width': 1, opacity: 0.9
+      });
+      basesG.appendChild(rect);
+      pts.forEach((p)=>{
+        const slot = svgCircle(p.x, p.y, 10, { fill: c.soft, stroke: c.hex, 'stroke-width': 2 });
+        basesG.appendChild(slot);
+      });
+      const label = svgText(`${c.name}`, bx, by+66, { 'text-anchor':'middle', 'font-size': 12, fill: c.hex });
+      basesG.appendChild(label);
+    });
+  }
+
+  function renderTokens(){
+    tokensG.innerHTML = '';
+    // 聚合同位置以避免重疊：key 為位置簽章
+    const groups = new Map();
+    for(const t of game.tokens){
+      const key = posKeyOf(t);
+      const arr = groups.get(key) || [];
+      arr.push(t);
+      groups.set(key, arr);
+    }
+
+    // 每個組，計算偏移
+    for(const [key, arr] of groups){
+      const base = coordOf(arr[0]);
+      const offsets = spreadOffsets(arr.length, 12);
+      arr.forEach((t,idx)=>{
+        const color = COLORS[t.pid].hex;
+        const x = base.x + (offsets[idx]?.dx||0);
+        const y = base.y + (offsets[idx]?.dy||0);
+
+        const g = svgElem('g', { class:'token', id: tokenDomId(t), style:'cursor:default' });
+        const shadow = svgCircle(x, y+1.5, TOKEN_R, { fill: 'rgba(0,0,0,.35)' });
+        const body = svgCircle(x, y, TOKEN_R, { fill: color, stroke:'#111827', 'stroke-width':2 });
+        const dot = svgCircle(x, y, 4, { fill:'#fff', opacity:0.95 });
+
+        g.appendChild(shadow);
+        g.appendChild(body);
+        g.appendChild(dot);
+
+        tokensG.appendChild(g);
+      });
+    }
+  }
+
+  function spreadOffsets(n, d){
+    if(n<=1) return [{dx:0,dy:0}];
+    if(n===2) return [{dx:-d,dy:0},{dx:d,dy:0}];
+    if(n===3) return [{dx:0,dy:-d},{dx:-d,dy:d},{dx:d,dy:d}];
+    const res=[];
+    const ring = Math.min(n, 6);
+    for(let i=0;i<ring;i++){
+      const a = (Math.PI*2*i)/ring;
+      res.push({dx: Math.round(Math.cos(a)*d), dy: Math.round(Math.sin(a)*d)});
+    }
+    while(res.length<n) res.push({dx:0,dy:0});
+    return res;
+  }
+
+  function posKeyOf(t){
+    if(t.progress===0){
+      return `B${t.pid}_${t.tid}`; // 機庫位置
+    } else if(t.progress>=1 && t.progress<=52){
+      const idx = ringIndexOf(t);
+      return `R${idx}`;
+    } else {
+      const step = t.progress - 52; // 1..6
+      return `H${t.pid}_${step}`;
+    }
+  }
+
+  function coordOf(t){
+    if(t.progress===0){
+      const pts = baseSlots[t.pid];
+      const slot = pts[t.tid % 4];
+      return { x: slot.x, y: slot.y };
+    } else if(t.progress>=1 && t.progress<=52){
+      const idx = ringIndexOf(t);
+      return ringPos[idx];
+    } else {
+      const step = t.progress - 52; // 1..6
+      return homePos[t.pid][step-1];
+    }
+  }
+
+  // SVG 幫手
+  function svgElem(tag, attrs){
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for(const k in attrs){ el.setAttribute(k, attrs[k]); }
+    return el;
+  }
+  function svgRect(x,y,w,h,rx=0,ry=0,attrs={}){
+    const el = svgElem('rect', { x, y, width:w, height:h, rx, ry, ...attrs });
+    return el;
+  }
+  function svgCircle(cx,cy,r,attrs={}){
+    return svgElem('circle', { cx, cy, r, ...attrs });
+  }
+  function svgText(text,x,y,attrs={}){
+    const el = svgElem('text', { x, y, ...attrs });
+    el.textContent = text;
+    return el;
+  }
+
+  // 顏色工具
+  function lighten(hex, amt=0.5){
+    const {r,g,b} = hexToRgb(hex);
+    const lr = Math.round(r + (255-r)*amt);
+    const lg = Math.round(g + (255-g)*amt);
+    const lb = Math.round(b + (255-b)*amt);
+    return `rgb(${lr},${lg},${lb})`;
+  }
+  function hexToRgb(hex){
+    const m = hex.replace('#','');
+    const n = parseInt(m,16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  function softHexToHex(rgbString){
+    // "rgb(r,g,b)" -> "#rrggbb"
+    const m = rgbString.replace(/\s+/g,'').match(/^rgb\((\d+),(\d+),(\d+)\)$/i);
+    if(!m) return '#ffffff';
+    const r = Number(m[1]), g = Number(m[2]), b = Number(m[3]);
+    const toHex = v => v.toString(16).padStart(2,'0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+})();
+</script>
+</body>
+</html>
