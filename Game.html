@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>飛行棋（彩色格 + 擲骰動畫）</title>
+<title>飛行棋（中央擲骰 + 上回合點數顯示 + 超級彈跳格）</title>
 <style>
   :root{
     --bg:#0f172a;
@@ -74,17 +74,41 @@
   }
   .pill .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:-1px; }
 
-  .dice-btn{
+  .board-card{
+    margin-top:14px; background:var(--panel); border-radius:16px; padding:10px;
+    box-shadow: var(--shadow);
+  }
+
+  .board-wrap{
+    width:100%; max-width: 900px; margin: 0 auto;
+    position: relative; /* 讓中央擲骰可定位 */
+  }
+
+  .legend{
+    display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--muted);
+  }
+  .legend .chip{
+    display:flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #1f2937; border-radius:999px; background:#0b1220;
+  }
+  .legend .swatch{ width:12px; height:12px; border-radius:50%; }
+
+  /* 中央擲骰 */
+  .center-dice-wrap{
+    position:absolute; left:50%; top:50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+  }
+  .center-dice-btn{
     display:flex; align-items:center; gap:10px;
     background: linear-gradient(180deg,#374151,#111827);
     border:1px solid #374151; color:#fff; padding:10px 14px;
     border-radius:12px; cursor:pointer; font-weight:700;
     box-shadow: var(--shadow);
   }
-  .dice-btn:disabled{ opacity:.6; cursor:not-allowed; }
+  .center-dice-btn:disabled{ opacity:.6; cursor:not-allowed; }
   .dice{
-    width:32px; height:32px; background:#fff; color:#111; border-radius:8px;
-    display:grid; place-items:center; font-weight:800; font-size:16px;
+    width:36px; height:36px; background:#fff; color:#111; border-radius:8px;
+    display:grid; place-items:center; font-weight:800; font-size:18px;
     box-shadow: inset 0 2px 4px rgba(0,0,0,.2);
     will-change: transform;
   }
@@ -96,34 +120,27 @@
   .dice.rolling{
     animation: rollSpin 0.6s linear infinite;
   }
-
-  .board-card{
-    margin-top:14px; background:var(--panel); border-radius:16px; padding:10px;
-    box-shadow: var(--shadow);
+  .center-dice-text{
+    display:flex; flex-direction:column; line-height:1.1;
   }
-
-  .board-wrap{
-    width:100%; max-width: 900px; margin: 0 auto;
-  }
-
-  .legend{
-    display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--muted);
-  }
-  .legend .chip{
-    display:flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #1f2937; border-radius:999px; background:#0b1220;
-  }
-  .legend .swatch{ width:12px; height:12px; border-radius:50%; }
+  .roll-caption{ font-size:12px; color:#e5e7eb; }
+  .last-roll{ font-size:11px; color:#9ca3af; }
 
   /* Token styles */
   .token{
     cursor: pointer;
     transition: transform .12s ease, filter .12s ease;
+    transform-box: fill-box;       /* 確保縮放以自身中心為基準，不會「往右下彈出」 */
+    transform-origin: center;
   }
   .token.selectable{
-    filter: drop-shadow(0 0 6px rgba(255,255,255,.7)) saturate(1.1);
-    transform: scale(1.06);
+    filter: drop-shadow(0 0 10px rgba(255,255,255,.9)) saturate(1.1);
+    transform: scale(1.1);         /* 放大 10% */
   }
   .token.disabled{ cursor: default; opacity:.6; }
+
+  /* 超級彈跳格裝飾提示 */
+  .super-mark { pointer-events:none; }
 
   /* Tooltip / toast */
   .toast{
@@ -133,11 +150,28 @@
     border:1px solid #374151; z-index: 9999; pointer-events:none;
   }
 
+  /* 右下角浮動按鈕 */
+  .floating-btns{
+    position: fixed; right: 16px; bottom: 16px; z-index: 10000;
+    display:flex; gap:12px;
+  }
+  .fab{
+    width:50px; height:50px; border-radius: 999px;
+    background: linear-gradient(180deg,#374151,#111827);
+    border:1px solid #374151; box-shadow: var(--shadow);
+    display:flex; align-items:center; justify-content:center;
+    color:#e5e7eb; text-decoration:none;
+  }
+  .fab svg{ width:28px; height:28px; stroke:#e5e7eb; fill:none; stroke-width:2.2; }
+
   /* Responsive tweaks */
   @media (max-width: 480px){
     header{ gap:8px; }
     .title h1{ font-size:18px; }
-    .dice{ width:28px; height:28px; font-size:14px; }
+    .dice{ width:32px; height:32px; font-size:16px; }
+    .floating-btns{ right: 12px; bottom: 12px; gap:10px; }
+    .fab{ width:46px; height:46px; }
+    .fab svg{ width:24px; height:24px; }
   }
 </style>
 </head>
@@ -146,7 +180,7 @@
     <header>
       <div class="title">
         <h1>飛行棋</h1>
-        <div class="subtitle">彩色格跳躍 · 擲骰動畫 · 本機多人</div>
+        <div class="subtitle">中央擲骰 · 上回合點數 · 彩色格跳躍 · 超級彈跳格</div>
       </div>
       <div class="controls">
         <label for="playerCount">玩家數</label>
@@ -156,20 +190,17 @@
           <option value="4" selected>4 位</option>
         </select>
         <button id="newGameBtn">重新開始</button>
-        <button id="rollBtn" class="dice-btn">
-          <div class="dice" id="diceFace" aria-live="polite">?</div>
-          擲骰子
-        </button>
       </div>
     </header>
 
     <div class="status" id="statusBar">
-      <span class="pill"><span class="dot" id="turnDot"></span>目前玩家：<b id="turnName">—</b></span>
-      <span class="pill" id="infoPill">請按「擲骰子」開始</span>
+      <span class="pill"><span class="dot" id="turnDot"></span>目前玩家：<b id="turnName">--</b></span>
+      <span class="pill" id="infoPill">請點中央骰子開始</span>
     </div>
 
     <div class="board-card">
       <div class="board-wrap">
+        <!-- 棋盤 SVG -->
         <svg id="board" viewBox="0 0 1000 1000" width="100%" height="100%" role="img" aria-label="飛行棋棋盤">
           <defs>
             <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -178,7 +209,6 @@
           </defs>
           <rect x="0" y="0" width="1000" height="1000" fill="#0b1220"></rect>
 
-          <!-- 棋盤群組 -->
           <g id="tiles"></g>
           <g id="homePaths"></g>
           <g id="bases"></g>
@@ -186,17 +216,48 @@
           <g id="tokens"></g>
           <g id="touchLayer"></g>
         </svg>
+
+        <!-- 中央擲骰區 -->
+        <div class="center-dice-wrap">
+          <button id="rollBtn" class="center-dice-btn" aria-label="擲骰子">
+            <div class="dice" id="diceFace" aria-live="polite">?</div>
+            <div class="center-dice-text">
+              <div class="roll-caption">點擊擲骰</div>
+              <div class="last-roll" id="lastRollLabel">上回合：--</div>
+            </div>
+          </button>
+        </div>
       </div>
+
       <div class="legend">
         <span class="chip"><span class="swatch" style="background: var(--red)"></span>紅</span>
         <span class="chip"><span class="swatch" style="background: var(--yellow)"></span>黃</span>
         <span class="chip"><span class="swatch" style="background: var(--green)"></span>綠</span>
         <span class="chip"><span class="swatch" style="background: var(--blue)"></span>藍</span>
         <span class="chip">起飛：骰到 1 或 6</span>
-        <span class="chip">彩色格：停在本色即自動跳到下一個同色格（僅一次；不進終點跑道）</span>
+        <span class="chip">彩色格：停在本色即跳到下一個同色格（僅一次；不進終點跑道）</span>
+        <span class="chip">超級彈跳格：停上去前進 8 格（不進終點跑道）</span>
         <span class="chip">擲到 6：可再擲一次（連 3 個 6 作廢）</span>
       </div>
     </div>
+  </div>
+
+  <!-- 右下角兩個按鈕 -->
+  <div class="floating-btns" aria-label="快速操作">
+    <!-- 返回（corner-down-left 風格） -->
+    <a href="./index.html" class="fab" aria-label="返回">
+      <svg viewBox="0 0 24 24" role="img" aria-label="返回">
+        <path d="M9 15l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M3 9h10a5 5 0 0 1 5 5v7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </a>
+    <!-- 首頁（home 風格） -->
+    <a href="./index.html" class="fab" aria-label="回到首頁">
+      <svg viewBox="0 0 24 24" role="img" aria-label="首頁">
+        <path d="M3 11l9-7 9 7" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M9 22V12h6v10" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </a>
   </div>
 
   <div id="toast" class="toast" style="display:none;"></div>
@@ -213,9 +274,12 @@
 
   const RING_COUNT = 52;
   const HOME_LEN = 6; // 進終點跑道長度
-  const ENTRY_INDEX = [0, 13, 26, 39]; // 各色起點在主圈的索引
+  const ENTRY_INDEX = [0, 13, 26, 39]; // 各色起點在主圈的索引（紅、黃、綠、藍）
   const SAFE_INDICES = new Set(ENTRY_INDEX); // 安全格：起點
   const JUMP_STEPS = 4; // 同色格之間間隔（四色循環）
+  // 超級彈跳格：每色兩處，落到後前進 SUPER_JUMP_STEPS（不進跑道）
+  const SUPER_JUMP_STEPS = 8;
+  const SUPER_JUMP_OFFSETS = [7, 21]; // 相對各自 ENTRY_INDEX 的偏移（可調整）
 
   // 幾何設定
   const CX = 500, CY = 500;       // 中心
@@ -242,16 +306,18 @@
   const turnName = document.getElementById('turnName');
   const infoPill = document.getElementById('infoPill');
   const toastEl = document.getElementById('toast');
+  const lastRollLabel = document.getElementById('lastRollLabel');
 
   // 狀態
   let game = null;
 
-  // 幾何座標生成
+  // 幾何座標生成（主圈）
   const ringPos = Array.from({length: RING_COUNT}, (_,i) => {
     const angle = ((-90 + (360 / RING_COUNT) * i) * Math.PI) / 180;
     return { x: CX + R_OUT * Math.cos(angle), y: CY + R_OUT * Math.sin(angle), angle };
   });
 
+  // 注意：將終點跑道朝向改為使用 start.angle（原本是 +PI）
   const homePos = COLORS.map((c, p) => {
     const startIdx = ENTRY_INDEX[p];
     const start = ringPos[startIdx];
@@ -259,11 +325,13 @@
     const arr = [];
     for(let i=1;i<=HOME_LEN;i++){
       const r = R_OUT - i*step - HOME_INNER_PAD;
-      arr.push({ x: CX + r * Math.cos(start.angle + Math.PI), y: CY + r * Math.sin(start.angle + Math.PI) });
+      // 使用 start.angle，讓紅朝上、黃朝右、綠朝下、藍朝左
+      arr.push({ x: CX + r * Math.cos(start.angle), y: CY + r * Math.sin(start.angle) });
     }
     return arr; // [0..5]
   });
 
+  // 機庫 4 格
   const baseSlots = COLORS.map((c, p) => {
     const ang = ringPos[ENTRY_INDEX[p]].angle;
     const bx = CX + BASE_R * Math.cos(ang);
@@ -289,7 +357,19 @@
   newGameBtn.addEventListener('click', newGame);
   playerCountSel.addEventListener('change', newGame);
 
-  // 主要函式
+  function buildSuperJumpSets(nPlayers){
+    // 為每位玩家建立一組「超級彈跳格」在主圈的索引
+    const sets = [];
+    for(let pid=0; pid<nPlayers; pid++){
+      const s = new Set();
+      for(const off of SUPER_JUMP_OFFSETS){
+        s.add((ENTRY_INDEX[pid] + off) % RING_COUNT);
+      }
+      sets.push(s);
+    }
+    return sets;
+  }
+
   function newGame(){
     const n = Number(playerCountSel.value);
     const players = COLORS.slice(0, n).map((c,i) => ({
@@ -299,29 +379,30 @@
       players,
       current: 0,
       dice: null,
+      lastDiceRolled: null,  // 當前回合最近一次擲到的點數
+      prevTurnDice: null,    // 上一個完成回合的最後點數
       canRoll: true,
       selecting: false,
-      extraRollsInTurn: 0, // 累積連續 6
-      tokens: [], // 全部棋子
+      extraRollsInTurn: 0, // 累積連續 6（在一次回合中）
+      tokens: [],
       winner: null,
       moving: false,
-      turnCount: 0
+      turnCount: 0,
+      superJumps: buildSuperJumpSets(n) // 新增：超級彈跳格集合
     };
-    // 建立每位玩家的 4 架飛機
+    game.tokens.length = 0;
     players.forEach(p=>{
       for(let k=0;k<4;k++){
-        game.tokens.push({
-          pid: p.id,
-          tid: k,
-          progress: 0, // 0=機庫; 1..52主圈; 53..58本色入場; 58=終點
-        });
+        game.tokens.push({ pid:p.id, tid:k, progress:0 });
       }
     });
-    drawBoard(); // 重畫靜態
-    renderTokens(); // 畫棋子
-    updateStatus('請按「擲骰子」開始');
+
+    drawBoard();
+    renderTokens();
+    updateStatus('請點中央骰子開始');
     diceFace.textContent = '?';
     setTurnIndicator();
+    updateLastRollLabel();
     enableRoll(true);
     showToast('遊戲開始！紅方先手（或玩家 1）');
   }
@@ -333,11 +414,12 @@
     // 擲骰動畫
     const val = await animateDiceRoll();
     game.dice = val;
+    game.lastDiceRolled = val;
 
     // 判斷可動棋子
     const legal = getLegalMoves(game.current, val);
     if(legal.length === 0){
-      updateStatus(`沒有可動的棋子，回合結束`);
+      updateStatus('沒有可動的棋子，回合結束');
       if(val === 6){
         game.extraRollsInTurn++;
         if(game.extraRollsInTurn >= 3){
@@ -347,7 +429,8 @@
       endTurn();
       return;
     }
-    // 高亮可選
+
+    // 高亮可選（改為發光 + 放大，不再「往右下彈出」）
     highlightSelectable(legal);
     game.selecting = true;
     game.canRoll = false;
@@ -382,11 +465,9 @@
   }
 
   function highlightSelectable(legalTokens){
-    // 清除既有互動
     Array.from(tokensG.querySelectorAll('.token')).forEach(el=>{
       el.classList.remove('selectable'); el.onclick = null;
     });
-    // 標記
     for(const t of legalTokens){
       const node = getTokenNode(t);
       if(node){
@@ -418,19 +499,17 @@
 
     // 動畫逐步移動
     if(token.progress === 0 && (dice === 1 || dice === 6)){
-      // 起飛：進入 progress=1（即從自家 entry 出發）
-      token.progress = 1;
+      token.progress = 1; // 起飛
       await animateMove(token, 0);
     } else {
-      const steps = dice;
-      for(let s=0;s<steps;s++){
+      for(let s=0;s<dice;s++){
         token.progress += 1;
         await animateMove(token, ANIM_STEP_MS);
       }
     }
 
-    // 跳躍、吃子、勝利判定
-    await afterMoveResolve(token);
+    // 特殊格、吃子、勝利判定
+    const won = await afterMoveResolve(token);
 
     // 擲到 6 可再擲（維持原規則）
     if(game.dice === 6){
@@ -448,6 +527,16 @@
       }
     }
 
+    if(won){
+      // 遊戲結束也更新「上回合」顯示為最後這次的點數
+      if(game.lastDiceRolled != null){
+        game.prevTurnDice = game.lastDiceRolled;
+        updateLastRollLabel();
+      }
+      game.moving = false;
+      return;
+    }
+
     // 結束回合
     endTurn();
   }
@@ -458,7 +547,24 @@
   }
 
   async function afterMoveResolve(movedToken){
-    // 1) 彩色格跳躍：只在主圈上，且只跳一次，不跳進終點跑道（>52）
+    // 保持在主圈時才處理特殊格
+    if(movedToken.progress >=1 && movedToken.progress <=52){
+      const ringIdx = ringIndexOf(movedToken);
+
+      // 1) 超級彈跳格（不進終點跑道）
+      if(game.superJumps?.[movedToken.pid]?.has(ringIdx)){
+        const canJump = Math.max(0, Math.min(SUPER_JUMP_STEPS, 52 - movedToken.progress));
+        if(canJump > 0){
+          showToast(`超級彈跳！前進 ${canJump} 格`);
+          for(let s=0; s<canJump; s++){
+            movedToken.progress += 1;
+            await animateMove(movedToken, Math.max(50, ANIM_STEP_MS * 0.55));
+          }
+        }
+      }
+    }
+
+    // 2) 彩色格跳躍（主圈；不跳進終點跑道）
     if(movedToken.progress >=1 && movedToken.progress <=52){
       const ringIdx = ringIndexOf(movedToken);
       const tileColorIdx = ringIdx % COLORS.length;
@@ -473,7 +579,7 @@
       }
     }
 
-    // 2) 吃子（主圈且非安全格）
+    // 3) 吃子（主圈且非安全格）
     if(movedToken.progress >=1 && movedToken.progress <=52){
       const pid = movedToken.pid;
       const myRingIndex = ringIndexOf(movedToken);
@@ -494,7 +600,7 @@
       }
     }
 
-    // 3) 勝利判定
+    // 4) 勝利判定
     const myTokens = game.tokens.filter(t=>t.pid===movedToken.pid);
     const allHome = myTokens.every(t=>t.progress===58);
     if(allHome){
@@ -503,20 +609,29 @@
       showToast(`玩家「${COLORS[movedToken.pid].name}」全部到家！恭喜獲勝！`);
       updateStatus(`玩家「${COLORS[movedToken.pid].name}」獲勝。按「重新開始」再玩一局`);
       enableRoll(false);
+      return true;
     }
+    return false;
   }
 
   function endTurn(){
+    // 將剛剛的最後一次骰點記錄成上一回合點數
+    if(game.lastDiceRolled != null){
+      game.prevTurnDice = game.lastDiceRolled;
+      updateLastRollLabel();
+    }
+
+    // 重置/換手
     game.moving = false;
     game.canRoll = true;
     game.selecting = false;
     game.dice = null;
     diceFace.textContent = '?';
     game.extraRollsInTurn = 0;
+    game.lastDiceRolled = null;
     game.current = (game.current + 1) % game.players.length;
     setTurnIndicator();
     updateStatus('輪到你了，請擲骰子');
-    // 修正點：切換到下一位後，重新啟用擲骰按鈕
     enableRoll(true);
   }
 
@@ -532,6 +647,11 @@
     const p = game.players[game.current];
     turnDot.style.background = p.color;
     turnName.textContent = p.name;
+  }
+
+  function updateLastRollLabel(){
+    const text = (game.prevTurnDice == null) ? '--' : String(game.prevTurnDice);
+    lastRollLabel.textContent = `上回合：${text}`;
   }
 
   function updateStatus(msg){
@@ -571,11 +691,13 @@
 
   // 視覺繪製
   function drawBoard(){
-    // 清空
     tilesG.innerHTML = '';
     homeG.innerHTML = '';
     basesG.innerHTML = '';
     centerG.innerHTML = '';
+
+    const nPlayers = Number(playerCountSel.value);
+    const superSets = game?.superJumps ?? buildSuperJumpSets(nPlayers);
 
     // 主圈格子（四色循環上色）
     for(let i=0;i<RING_COUNT;i++){
@@ -594,6 +716,22 @@
       });
       tilesG.appendChild(rect);
 
+      // 超級彈跳標記（如果此格屬於任一玩家的超級彈跳格）
+      let superOwner = -1;
+      for(let pid=0; pid<nPlayers; pid++){
+        if(superSets[pid].has(i)){ superOwner = pid; break; }
+      }
+      if(superOwner >= 0){
+        const bolt = svgPath(lightningPath(p.x, p.y, 10), {
+          fill: COLORS[superOwner].hex,
+          stroke: '#111827',
+          'stroke-width': 1.5,
+          class: 'super-mark',
+          opacity: 0.95
+        });
+        tilesG.appendChild(bolt);
+      }
+
       // 小刻度
       const label = svgText(String(i+1), p.x, p.y + 4, {
         'font-size': 10, 'text-anchor':'middle', 'fill':'#475569'
@@ -601,9 +739,8 @@
       tilesG.appendChild(label);
     }
 
-    // 入場跑道
-    game?.players?.forEach?.((pl)=>{
-      const pid = pl.id;
+    // 入場跑道（方向已對調為朝向各自方位：紅上、黃右、綠下、藍左）
+    COLORS.slice(0, Number(playerCountSel.value)).forEach((c, pid)=>{
       const path = homePos[pid];
       for(let i=0;i<HOME_LEN;i++){
         const p = path[i];
@@ -648,7 +785,6 @@
 
   function renderTokens(){
     tokensG.innerHTML = '';
-    // 聚合同位置以避免重疊：key 為位置簽章
     const groups = new Map();
     for(const t of game.tokens){
       const key = posKeyOf(t);
@@ -656,8 +792,6 @@
       arr.push(t);
       groups.set(key, arr);
     }
-
-    // 每個組，計算偏移
     for(const [key, arr] of groups){
       const base = coordOf(arr[0]);
       const offsets = spreadOffsets(arr.length, 12);
@@ -737,6 +871,24 @@
     const el = svgElem('text', { x, y, ...attrs });
     el.textContent = text;
     return el;
+  }
+  function svgPath(d, attrs={}){
+    const el = svgElem('path', { d, ...attrs });
+    return el;
+  }
+
+  // 一個簡單的閃電形狀路徑（中心 x,y，尺寸 size）
+  function lightningPath(x, y, size){
+    const s = size;
+    return [
+      `M ${x - 3} ${y - s}`,
+      `L ${x + 1} ${y - 2}`,
+      `L ${x - 5} ${y - 2}`,
+      `L ${x + 3} ${y + s}`,
+      `L ${x - 1} ${y + 2}`,
+      `L ${x + 5} ${y + 2}`,
+      'Z'
+    ].join(' ');
   }
 
   // 顏色工具
