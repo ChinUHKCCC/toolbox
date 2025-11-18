@@ -16,6 +16,14 @@
       --btn: #1f2937;
       --btn-hover: #374151;
       --ring: #22d3ee55;
+
+      --fab-bg: #111827;
+      --fab-border: #233045;
+      --fab-icon: #e5e7eb;
+      --fab-hover: #1f2937;
+      --toast-bg: rgba(17, 24, 39, 0.92);
+      --toast-text: #e5e7eb;
+      --toast-border: rgba(148,163,184,0.3);
     }
     * { box-sizing: border-box; }
     html, body {
@@ -41,10 +49,7 @@
       display: grid;
       gap: 16px;
     }
-    .title {
-      text-align: center;
-      line-height: 1.2;
-    }
+    .title { text-align: center; line-height: 1.2; }
     .title h1 {
       margin: 0;
       font-size: clamp(22px, 5vw, 34px);
@@ -55,11 +60,7 @@
       background-clip: text;
       color: transparent;
     }
-    .title p {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: clamp(13px, 2.5vw, 16px);
-    }
+    .title p { margin: 6px 0 0; color: var(--muted); font-size: clamp(13px, 2.5vw, 16px); }
     .card {
       background: linear-gradient(180deg, #0f172a, #0b1220);
       border: 1px solid #233045;
@@ -103,31 +104,11 @@
       font-weight: 700;
       color: #f1f5f9;
     }
-    .question {
-      margin: 14px 0 0;
-      font-size: clamp(18px, 3.8vw, 24px);
-      line-height: 1.5;
-      letter-spacing: 0.2px;
-    }
-    .hint {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: clamp(13px, 2.6vw, 14px);
-    }
-    .controls {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      margin-top: 16px;
-    }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    @media (max-width: 440px) {
-      .row { grid-template-columns: 1fr; }
-    }
+    .question { margin: 14px 0 0; font-size: clamp(18px, 3.8vw, 24px); line-height: 1.5; letter-spacing: 0.2px; }
+    .hint { margin-top: 12px; color: var(--muted); font-size: clamp(13px, 2.6vw, 14px); }
+    .controls { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 440px) { .row { grid-template-columns: 1fr; } }
     button, select {
       appearance: none;
       border: 1px solid #273244;
@@ -148,30 +129,72 @@
       color: #0b1220;
       font-weight: 800;
     }
-    .primary:hover {
-      filter: brightness(1.05);
-      transform: translateY(-1px);
-    }
-    .footer {
-      margin-top: 8px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .stack {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-    .ghost {
-      position: absolute;
-      inset: 12px;
-      border-radius: 16px;
-      border: 1px dashed rgba(148,163,184,0.18);
-      transform: rotate(-2deg);
-    }
+    .primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .footer { margin-top: 8px; text-align: center; color: var(--muted); font-size: 12px; }
+    .stack { position: absolute; inset: 0; pointer-events: none; }
+    .ghost { position: absolute; inset: 12px; border-radius: 16px; border: 1px dashed rgba(148,163,184,0.18); transform: rotate(-2deg); }
     .ghost.g2 { inset: 20px; transform: rotate(3deg); opacity: 0.6; }
     .ghost.g3 { inset: 28px; transform: rotate(-4deg); opacity: 0.35; }
+
+    /* 浮動快捷按鈕區 */
+    .floating-btns {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      display: grid;
+      gap: 12px;
+      z-index: 50;
+    }
+    .fab {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      background: var(--fab-bg);
+      border: 1px solid var(--fab-border);
+      display: inline-grid;
+      place-items: center;
+      box-shadow:
+        0 10px 24px rgba(0,0,0,0.35),
+        inset 0 0 0 1px rgba(255,255,255,0.03);
+      transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+      text-decoration: none;
+      outline: none;
+    }
+    .fab:hover { background: var(--fab-hover); transform: translateY(-1px); }
+    .fab:focus-visible { box-shadow: 0 0 0 4px var(--ring), 0 10px 24px rgba(0,0,0,0.35); }
+    .fab svg { width: 26px; height: 26px; stroke: var(--fab-icon); fill: none; stroke-width: 2; }
+
+    /* Toast 提示 */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 92px; /* 避開浮動按鈕 */
+      transform: translateX(-50%) translateY(20px);
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      padding: 10px 14px;
+      font-size: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--toast-border);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 60;
+      max-width: min(92vw, 480px);
+      text-align: center;
+      line-height: 1.4;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 支援偏好化簡動態 */
+    @media (prefers-reduced-motion: reduce) {
+      .primary:hover, .fab:hover { transform: none; }
+      .toast { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -228,13 +251,33 @@
     </div>
   </div>
 
+  <!-- 右下角兩個按鈕 -->
+  <div class="floating-btns" aria-label="快速操作">
+    <!-- 返回（corner-down-left 風格） -->
+    <a href="./Resource.html" class="fab" aria-label="返回">
+      <svg viewBox="0 0 24 24" role="img" aria-label="返回">
+        <path d="M9 15l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M3 9h10a5 5 0 0 1 5 5v7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </a>
+    <!-- 首頁（home 風格） -->
+    <a href="./index.html" class="fab" aria-label="回到首頁">
+      <svg viewBox="0 0 24 24" role="img" aria-label="首頁">
+        <path d="M3 11l9-7 9 7" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M9 22V12h6v10" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" style="display:none;"></div>
+
   <script>
     // ===========================
     // 問題資料區（可自行修改）
-    // 將問題文字替換為你的版本即可；不要更動每題的 id 與 level 結構。
     // level: "L1"（輕鬆）、"L2"（深入）、"L3"（親密）
     // ===========================
-    const QUESTIONS = [
+const QUESTIONS = [
       // L1 輕鬆暖身（約 34 題）
       { id: 1, level: "L1", text: "今天讓你心情不錯的一件小事是什麼？" },
       { id: 2, level: "L1", text: "最近一次讓你會心一笑的瞬間是？" },
@@ -341,7 +384,6 @@
       { id: 99, level: "L3", text: "你對親密的界線是什麼？如何溝通與維護？" },
       { id: 100, level: "L3", text: "如果把關係比喻成一座花園，你會如何照顧它？" },
     ];
-
     // ============ 程式邏輯 ============
     const cardNoEl = document.getElementById("cardNo");
     const questionEl = document.getElementById("questionText");
@@ -350,6 +392,8 @@
     const shuffleBtn = document.getElementById("shuffleBtn");
     const levelSel = document.getElementById("levelSel");
     const repeatSel = document.getElementById("repeatSel");
+
+    const toastEl = document.getElementById("toast");
 
     let pool = [];
     let used = new Set();
@@ -363,6 +407,7 @@
       shuffle(pool);
       used.clear();
       updateHint();
+      showToast("已重建抽卡池");
     }
 
     function shuffle(arr) {
@@ -375,21 +420,23 @@
     function drawOne() {
       const allowRepeat = repeatSel.value === "yes";
       const level = levelSel.value;
-
       let candidates = QUESTIONS.filter(q => level === "all" ? true : q.level === level);
 
       if (!allowRepeat) {
-        // 使用池避免重複
         if (pool.length === 0) {
           questionEl.textContent = "本輪已抽完！請按「重置／洗牌」或改為允許重複。";
           cardNoEl.textContent = "✓";
+          showToast("本輪已抽完，請重置或改為允許重複");
           return;
         }
         const q = pool.pop();
         used.add(q.id);
         show(q);
       } else {
-        // 允許重複則直接亂數挑
+        if (candidates.length === 0) {
+          showToast("目前篩選下沒有題目");
+          return;
+        }
         const q = candidates[Math.floor(Math.random() * candidates.length)];
         show(q);
       }
@@ -409,6 +456,7 @@
         });
       });
       hintEl.textContent = levelLabel(q.level) + " · 若需要更多時間，可說「Pass」讓下一位回答。";
+      showToast(`抽到第 ${q.id} 題（${levelLabel(q.level)}）`);
     }
 
     function levelLabel(lv) {
@@ -423,13 +471,32 @@
     function updateHint() {
       const level = levelSel.value;
       const list = QUESTIONS.filter(q => level === "all" ? true : q.level === level);
-      const remain = pool.length || list.length;
       hintEl.textContent = `目前篩選：${level === "all" ? "全部" : levelLabel(level)} · 問題數：${list.length} · 未抽：${pool.length || "—"}`;
+    }
+
+    // Toast 函式
+    let toastTimer = null;
+    function showToast(message, duration = 2200) {
+      if (!toastEl) return;
+      toastEl.textContent = message;
+      toastEl.style.display = "block";
+      // 觸發動畫
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove("show");
+        // 動畫結束後才隱藏
+        setTimeout(() => { toastEl.style.display = "none"; }, 220);
+      }, duration);
     }
 
     // 事件綁定
     drawBtn.addEventListener("click", drawOne);
-    shuffleBtn.addEventListener("click", () => { buildPool(); cardNoEl.textContent = "—"; questionEl.textContent = "已洗牌，按「抽卡」開始。"; });
+    shuffleBtn.addEventListener("click", () => {
+      buildPool();
+      cardNoEl.textContent = "—";
+      questionEl.textContent = "已洗牌，按「抽卡」開始。";
+    });
     levelSel.addEventListener("change", buildPool);
     repeatSel.addEventListener("change", buildPool);
 
