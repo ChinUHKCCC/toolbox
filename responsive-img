@@ -6,7 +6,7 @@
 
 @media (max-width: 768px) {   /* typical mobile/tablet breakpoint */
   .responsive-img {
-    width: 200px;           /* smaller for mobile */
+    width: 100px;           /* smaller for mobile */
     /* or: width: 90%;      even more fluid */
   }
 }
