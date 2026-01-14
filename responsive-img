@@ -1,0 +1,12 @@
+.responsive-img {
+  width: 600px;           /* default for desktop/PC */
+  height: auto;
+  max-width: 100%;        /* never bigger than container */
+}
+
+@media (max-width: 768px) {   /* typical mobile/tablet breakpoint */
+  .responsive-img {
+    width: 300px;           /* smaller for mobile */
+    /* or: width: 90%;      even more fluid */
+  }
+}
