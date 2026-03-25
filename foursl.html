@@ -408,7 +408,7 @@ function compareBlocks(userRaw, goldRaw, opts){
   }
 
   if(scriptureErrors > 0){
-    hints.push(`<div class="hint">經文部分需逐字一致（標點不計）。檢測到約 ${scriptureErrors} 處錯誤，請參考右側標準答案修正。</div>`);
+    hints.push(`<div class="hint">如果是經文部分需逐字一致。可以參考右側標準答案修正。</div>`);
   }
 
   return {
@@ -447,7 +447,7 @@ function compareNow(){
   document.getElementById('hints').innerHTML = result.hintsHtml;
 
   document.getElementById('stats').textContent = 
-    result.stats.scriptureErrors > 0 ? `經文錯處：約 ${result.stats.scriptureErrors} 處` : '經文錯處：0';
+    result.stats.scriptureErrors > 0 ? `繼續加油！` : '完全正確！';
 
   logRecord(userText, goldText, result.stats);
 }
