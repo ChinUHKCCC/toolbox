@@ -63,9 +63,8 @@
   .small{font-size:12px; color:var(--muted);}
 
   /* 新增：右上角導航按鈕 */
+    /* 導航按鈕樣式（置中版） */
   .nav-btn {
-    position: fixed;
-    top: 20px;
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -78,7 +77,6 @@
     justify-content: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     cursor: pointer;
-    z-index: 100;
     transition: all 0.25s;
   }
   .nav-btn:hover {
@@ -86,15 +84,17 @@
     color: white;
     transform: scale(1.12);
   }
-  .home-btn { right: 85px; }
-  .resource-btn { right: 20px; }
+  .home-btn { right: 1000px; }
+  .resource-btn { right: 935px; }
 </style>
 </head>
 <body>
 
-<!-- 右上角導航按鈕 -->
-<div class="nav-btn home-btn" onclick="window.location.href='index.html'" title="返回首頁">🏠</div>
-<div class="nav-btn resource-btn" onclick="window.location.href='Resource.html'" title="前往資源頁">→</div>
+<!-- 置中導航按鈕 -->
+<div style="position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; gap: 15px;">
+  <div class="nav-btn" onclick="window.location.href='index.html'" title="返回首頁">🏠</div>
+  <div class="nav-btn" onclick="window.location.href='Resource.html'" title="前往資源頁">→</div>
+</div>
 <header>
   <div class="row" style="align-items:center; justify-content:space-between;">
     <div>
@@ -484,15 +484,6 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 const records=[];
 function logRecord(userText, goldText, stats){
   records.push({ ts: new Date().toISOString(), userLen: userText.length, goldLen: goldText.length, scriptureErrors: stats.scriptureErrors || 0 });
-}
-function exportCSV(){
-  if(!records.length){ alert('尚無練習紀錄'); return; }
-  const header = ['ts','userLen','goldLen','scriptureErrors'];
-  const rows = [header.join(',')].concat(records.map(r=>header.map(k=>r[k]).join(',')));
-  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='practice_log.csv'; a.click();
-  URL.revokeObjectURL(url);
 }
 
 // ==================== 初始化 ====================
