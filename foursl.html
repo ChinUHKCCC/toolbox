@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>背四律 Checkout 神噐 — 內置標準答案版</title>
+<style>
+  :root{
+    --ok:#0da37f;
+    --warn:#d4a72c;
+    --err:#e33b2e;
+    --miss-bg:#f2f4f7;
+    --miss-bd:#c9ced6;
+    --fg:#1f2328;
+    --muted:#6a737d;
+    --accent:#1363df;
+    --chip:#eef2ff;
+  }
+  *{box-sizing:border-box}
+  
+  body{
+    font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; 
+    line-height:1.6; 
+    color:var(--fg); 
+    margin:0; 
+    background: url('background.jpg') center/cover no-repeat fixed;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+  }
+  
+  /* 半透明白色遮罩，讓文字清楚 */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.88);
+    z-index: -1;
+  }
+
+  header, footer{padding:12px 16px; border-bottom:1px solid #e5e7eb;}
+  footer{border-top:1px solid #e5e7eb; border-bottom:none;}
+  main{padding:16px; max-width:980px; margin:0 auto;}
+
+  h1{font-size:20px; margin:0 0 8px;}
+  .row{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px;}
+  .col{flex:1 1 320px; min-width:280px;}
+  textarea{width:100%; min-height:140px; padding:10px; font-size:15px; border:1px solid #d0d7de; border-radius:8px; resize:vertical;}
+  button{padding:10px 14px; border:1px solid #d0d7de; background:#fff; border-radius:8px; cursor:pointer;}
+  button.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .chip{background:var(--chip); padding:4px 8px; border-radius:999px; font-size:12px;}
+  .switch{display:inline-flex; align-items:center; gap:6px; font-size:14px;}
+  input[type="checkbox"]{transform:scale(1.1);}
+  .panel{border:1px solid #e5e7eb; border-radius:10px; padding:12px;}
+  .label{font-size:13px; color:var(--muted); margin-bottom:6px;}
+  .seg{white-space:pre-wrap; word-break:break-word; font-size:16px;}
+  .user .err{background:rgba(227,59,46,.14); color:#a11910; border-bottom:2px solid var(--err);}
+  .std .miss{background:var(--miss-bg); border:1px dashed var(--miss-bd); padding:0 2px; border-radius:4px;}
+  .punct{color:inherit;}
+  .stat{color:var(--muted); font-size:13px;}
+  .hint{background:#fff8e1; border:1px solid #ffe082; padding:8px; border-radius:8px; margin-top:8px; font-size:14px;}
+  .small{font-size:12px; color:var(--muted);}
+
+  /* 新增：右上角導航按鈕 */
+  .nav-btn {
+    position: fixed;
+    top: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.25s;
+  }
+  .nav-btn:hover {
+    background: var(--accent);
+    color: white;
+    transform: scale(1.12);
+  }
+  .home-btn { right: 85px; }
+  .resource-btn { right: 20px; }
+</style>
+</head>
+<body>
+
+<!-- 右上角導航按鈕 -->
+<div class="nav-btn home-btn" onclick="window.location.href='index.html'" title="返回首頁">🏠</div>
+<div class="nav-btn resource-btn" onclick="window.location.href='Resource.html'" title="前往資源頁">→</div>
+<header>
+  <div class="row" style="align-items:center; justify-content:space-between;">
+    <div>
+      <div class="chip">當生命遇上Checkout</div>
+      <h1>背四律 Checkout 神噐</h1>
+    </div>
+    <div class="toolbar">
+      <button onclick="resetAll()">清空輸入</button>
+      <button onclick="toggleStd()" title="切換標準答案可視">顯示/隱藏標準答案</button>
+      <button onclick="exportCSV()">匯出練習紀錄</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="row">
+    <div class="col">
+      <div class="label">我記得的內容（在此輸入）</div>
+      <textarea id="userText" placeholder="把你背的內容貼上或輸入..."></textarea>
+    </div>
+    <div class="col">
+      <div class="label">標準答案</div>
+      <select id="sectionSelect" multiple style="width:100%; min-height:180px; padding:8px; border-radius:8px; border:1px solid #d0d7de;">
+        <!-- JS 動態生成 -->
+      </select>
+      <div style="margin-top:8px; font-size:13px; color:var(--muted);">
+        按住 Ctrl（或 Cmd）可多選段落<br>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel col" style="flex:1 1 100%">
+      <div class="toolbar" style="justify-content:space-between; margin-bottom:8px;">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <span class="small">對答案區</span>
+          <label class="switch">
+            <input type="checkbox" id="hasNonScripture" />
+            <span>含【註】非經文段</span>
+          </label>
+        </div>
+        <div class="stat" id="stats"></div>
+      </div>
+
+      <div class="row">
+        <div class="col panel">
+          <div class="label">用家文本（錯處紅色）</div>
+          <div id="userView" class="seg user"></div>
+        </div>
+        <div class="col panel">
+          <div class="label">標準答案（缺漏灰底）</div>
+          <div id="stdView" class="seg std"></div>
+        </div>
+      </div>
+
+      <div id="hints"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="toolbar">
+      <button class="primary" onclick="compareNow()">對答案</button>
+      <button onclick="makeFill()">出一題填充題</button>
+      <button onclick="makeRefMatch()">出一題出處配對題</button>
+      <button onclick="clearQuiz()">清空題目</button>
+    </div>
+  </div>
+</main>
+
+<footer class="small">
+  <div style="padding:12px 16px;">
+    標點不計 • 經文嚴格
+  </div>
+</footer>
+
+<script>
+// ==================== 內置標準答案 ====================
+const standardContent = {
+  "1(封面)": `當生命遇上祂`,
+  "2-3(起初)": `「起初,神創造天地。」(創世記1:1)
+聖經自始記載了神與人關係的重要事情。
+祂想你知道...`,
+  "4-5(目的)": `神創造天地萬物和你,目的是要你經歷祂的愛和豐盛的生命
+目的 神愛你,讓你親自認識祂
+神創造你 「神就照著自己的形象造人,乃是照著祂的形象造男造女。」(創世記1:27)
+神愛你「神愛世人,甚至將祂的獨生子賜給他們,叫一切信祂的,不至滅亡,反得永生。」(約翰福音3:16)
+神給你豐盛的生命 [耶穌說]:「我來了是要叫人得生命,並且得的更豐盛。」(約翰福音10:10)
+為甚麼大多數人沒有經歷這豐盛的生命呢?`,
+  "6-7(隔絕)": `隔絕 人因有罪而不能經歷神的愛和豐盛的生命
+人因有罪「因為世人都犯了罪,虧缺了神的榮耀。」(羅馬書3:23)
+神創造人,原是要我們享受與祂同在的親密關係,但我們卻選擇偏行己路,違背神,以致與神隔絕。這種態度就是聖經所說的罪。
+與神隔絕「但你們的罪孽使你們與神隔絕;」(以賽亞書59:2)
+「因為罪的工價乃是死 (靈性與神隔絕);」(羅馬書6:23)
+聖潔的神與有罪的人中間,有如深淵隔絕。雖然人不斷用自己的方法,例如:人際關係、金錢、外貌、好行為、知識、地位等,來追求豐盛的人生,但總得不著滿足。
+以下告訴我們解決這難題的唯一答案...`,
+  "8-9(轉機)": `轉機 唯有透過耶穌基督,我們才可自親自認識神和經歷祂的愛
+耶穌為我們死 「唯有基督在我們還作罪人的時候為我們死,神的愛就在此向我們顯明了。」(羅馬書5:8)
+耶穌從死裡復活「按照聖經所說的,基督為我們的罪死了;又按照聖經所說的,他被埋葬了,在第三天復活了。他向彼得顯現,有向十二個使徒顯現。以後他又一次向五百多個跟從他的人顯現;」(哥林多前書15:3-6) 現代中文譯本
+唯有耶穌基督「耶穌說:『我就是道路、真理、生命;若不藉著我,沒有人能到父(神)那裡去。』」(約翰福音14:6)
+神差祂的兒子耶穌基督,為我們的罪死在十字架上,成為神與人中間的橋樑。
+只知道以上事情還不足夠...`,
+  "10(應許)": `應許 我們必須親自接受耶穌基督成為我們的救主和生命的主,然後才可經歷神的愛和豐盛的生命
+我們必須接受基督「凡接待祂的,就是信祂名的人,祂就賜他們權柄作神的兒女。」(約翰福音1:12)
+我們藉著信心接受基督「你們是靠上帝的恩典、憑著信心而得救的;這不是出於你們自己的行為,而是上帝所賜的。既然不是靠行為,你們就沒有甚麼好誇口的。」(以弗所書2:8-9) 現代中文譯本
+我們必須親自邀請基督進入心中 [耶穌說]:「看哪,我站在門外叩門,若有聽見我聲音就開門的,我要進到他那裡去。」(啟示錄3:20)`,
+  "11(接受基督)": `接受基督包括:
+承認我的罪
+放下自我,轉向基督(悔改)
+相信基督為我死在十字架上,並從死裡復活
+禱告邀請基督進入我的生命,赦免我的罪,使我成為新造的人
+人只在理智上認同有關基督的真理,或有一時的感動並不足夠;我們必須藉著信心 (意志的行動) 接受基督。
+兩個圓圈代表兩種生命
+左邊圓圈: 以自我為中心
+我-自我在生命的寶座上
+十字架-基督在生命以外
+人生因以自我為中心,產生各種憂慮不安
+右邊圓圈: 以基督為中心
+十字架-基督在生命的寶座上
+我-不再以自我為中心
+人生由基督帶領,與神關係和好,得著豐盛的生命
+如何接受基督?`,
+  "12(信靠)": `信靠-你現在可以藉著信心的禱告接受基督
+禱告就是和神交談。神知道你的心,祂看重你內心的態度,過於你的言語。以下禱告可以作參考:
+「主耶穌啊! 我需要你。感謝祢為我的罪死在十字架上。我願意打開心門,接受祢作我的救主和生命的主。感謝你赦免我的罪,並賜我永生。求祢引導我的一生,使我成為討祢喜悅的人。奉主耶穌的名禱告,阿門。」
+你是否願意作以上禱告,接受耶穌作你的救主?如果是,請你現在就禱告,基督會按祂的應許進入你的生命。`
+};
+
+// ==================== 基礎工具 ====================
+const ZSP = /[\u3000\s]/;
+const BASIC_PUNCT = /[.,;:!?，。、；：！？“”‘’（）()《》〈〉【】「」\[\]{}\-—…·、]/;
+
+function isPunct(ch){ return ZSP.test(ch) || BASIC_PUNCT.test(ch); }
+
+function tokenizeChars(s){
+  const out=[];
+  for(const ch of s){
+    if(isPunct(ch)) out.push({t:ch,k:'punct'});
+    else out.push({t:ch,k:'char'});
+  }
+  return out;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ==================== 非經文與出處處理 ====================
+const CANTONESE_PARTICLES = new Set(['呀','喇','啦','啩','噃','囉','呢','嘛','嘅','嘎','嘍','咯']);
+const NON_SCRIPTURE_EQUIV = [['和','與','同'],['你們','你哋','你地'],['因為','因','由於'],['但是','但','然而'],['所以','故此','因此']];
+
+function normalizeNonScriptureChar(ch){
+  for(const group of NON_SCRIPTURE_EQUIV){
+    if(group.includes(ch)) return group[0];
+  }
+  return CANTONESE_PARTICLES.has(ch) ? '' : ch;
+}
+
+const BOOK_MAP_ENTRIES = [['創','創世記'],['出','出埃及記'],['利','利未記'],['民','民數記'],['申','申命記'],['詩','詩篇'],['箴','箴言'],['傳','傳道書'],['賽','以賽亞書'],['耶','耶利米書'],['太','馬太福音'],['可','馬可福音'],['路','路加福音'],['約','約翰福音'],['徒','使徒行傳'],['羅','羅馬書'],['林前','哥林多前書'],['林後','哥林多後書']];
+
+function expandBookAbbr(s){
+  for(const [abbr, full] of BOOK_MAP_ENTRIES){
+    const re = new RegExp('^' + abbr);
+    if(re.test(s)) return s.replace(re, full);
+  }
+  return s;
+}
+
+function normalizeReference(s){
+  let out = s.replace(/\s+/g,'');
+  return expandBookAbbr(out);
+}
+
+function looksLikeRef(s){
+  const trimmed = s.trim();
+  return /[一二三四五六七八九十百千0-9]+\s*[:：]\s*[0-9]+/.test(trimmed) && trimmed.length <= 30;
+}
+
+function refEqual(a,b){
+  const na = normalizeReference(a), nb = normalizeReference(b);
+  return na===nb || a===nb || b===na;
+}
+
+function markSections(text){
+  const pattern = /【註】([\s\S]*?)【\/註】/g;
+  let last=0, m, out=[];
+  while((m=pattern.exec(text))!==null){
+    if(m.index>last) out.push({kind:'scripture', text:text.slice(last,m.index)});
+    out.push({kind:'nonscripture', text:m[1]});
+    last = pattern.lastIndex;
+  }
+  if(last<text.length) out.push({kind:'scripture', text:text.slice(last)});
+  return out;
+}
+
+function lcsAlign(aCore, bCore){
+  const m=aCore.length, n=bCore.length;
+  const dp = Array.from({length:m+1},()=>Array(n+1).fill(0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    dp[i][j] = aCore[i-1]===bCore[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  }
+  const pairs=[];
+  let i=m, j=n;
+  while(i>0 && j>0){
+    if(aCore[i-1]===bCore[j-1]){ pairs.push([i-1,j-1]); i--; j--; }
+    else if(dp[i-1][j] >= dp[i][j-1]) i--; else j--;
+  }
+  pairs.reverse();
+  return {pairs};
+}
+
+// ==================== 改進後的 diffLine（核心修復） ====================
+function diffLine(ut, gt, options){
+  const {strict, relaxNonScripture} = options;
+
+  const uTok0 = tokenizeChars(ut);
+  const gTok0 = tokenizeChars(gt);
+
+  function normTokArr(toks){
+    const arr = [];
+    for(const tk of toks){
+      if(tk.k === 'char'){
+        let ch = tk.t;
+        if(relaxNonScripture) ch = normalizeNonScriptureChar(ch);
+        if(ch !== '') arr.push({k:'char', raw:tk.t, cmp:ch});
+      }
+      // 標點完全不加入比較序列（這是關鍵修復）
+    }
+    return arr;
+  }
+
+  const uEff = normTokArr(uTok0);
+  const gEff = normTokArr(gTok0);
+
+  const {pairs} = lcsAlign(uEff.map(t=>t.cmp), gEff.map(t=>t.cmp));
+  const uAligned = new Set(pairs.map(p=>p[0]));
+  const gAligned = new Set(pairs.map(p=>p[1]));
+
+  // 渲染用家側
+  let userOut = '', uErrCount = 0;
+  let ei = 0;   // 有效字元計數器
+  for(let i = 0; i < uTok0.length; i++){
+    const tk = uTok0[i];
+    if(tk.k === 'punct'){
+      userOut += escapeHtml(tk.t);   // 標點永遠不標紅
+    } else {
+      // 只有有效字元才檢查是否對齊
+      if(ei < uEff.length && uAligned.has(ei)){
+        userOut += escapeHtml(tk.t);
+      } else {
+        userOut += `<span class="err">${escapeHtml(tk.t)}</span>`;
+        if(strict) uErrCount++;
+      }
+      ei++;
+    }
+  }
+
+  // 渲染標準答案側（缺漏用灰底）
+  let stdOut = '';
+  let ej = 0;
+  for(let j = 0; j < gTok0.length; j++){
+    const tk = gTok0[j];
+    if(tk.k === 'punct'){
+      stdOut += escapeHtml(tk.t);
+    } else {
+      if(ej < gEff.length && gAligned.has(ej)){
+        stdOut += escapeHtml(tk.t);
+      } else {
+        stdOut += `<span class="miss">${escapeHtml(tk.t)}</span>`;
+      }
+      ej++;
+    }
+  }
+
+  return {userSpan: userOut, stdSpan: stdOut, errCount: uErrCount};
+}
+
+// ==================== 主比對（整段模式） ====================
+function compareBlocks(userRaw, goldRaw, opts){
+  const userSecs = opts.hasNonScripture ? markSections(userRaw) : [{kind:'scripture', text:userRaw}];
+  const goldSecs = opts.hasNonScripture ? markSections(goldRaw) : [{kind:'scripture', text:goldRaw}];
+
+  const userViews = [], stdViews = [], hints = [];
+  let scriptureErrors = 0;
+
+  const maxLen = Math.max(userSecs.length, goldSecs.length);
+
+  for(let idx = 0; idx < maxLen; idx++){
+    const u = userSecs[idx] || {kind:'scripture', text:''};
+    let gText = (goldSecs[idx] || {kind:'scripture', text:''}).text;
+
+    // 重要：移除標準答案的第一行標題 【xxx】
+    const lines = gText.split('\n');
+    if(lines.length > 1){
+      gText = lines.slice(1).join('\n').trim();
+    }
+
+    const ut = u.text.trim();
+    const gt = gText;
+
+    const isScripture = (u.kind === 'scripture');
+
+    const {userSpan, stdSpan, errCount} = diffLine(ut, gt, {
+      strict: isScripture,
+      relaxNonScripture: !isScripture
+    });
+
+    userViews.push(userSpan);
+    stdViews.push(stdSpan);
+    if(isScripture) scriptureErrors += errCount;
+  }
+
+  if(scriptureErrors > 0){
+    hints.push(`<div class="hint">經文部分需逐字一致（標點不計）。檢測到約 ${scriptureErrors} 處錯誤，請參考右側標準答案修正。</div>`);
+  }
+
+  return {
+    userHtml: userViews.join('\n\n'),
+    stdHtml: stdViews.join('\n\n'),
+    hintsHtml: hints.join(''),
+    stats: { scriptureErrors }
+  };
+}
+
+// ==================== UI 功能 ====================
+function getSelectedGoldText() {
+  const select = document.getElementById('sectionSelect');
+  const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+  if(selected.length === 0) return '';
+  
+  return selected.map(key => 
+    `【${key}】\n${standardContent[key]}`
+  ).join('\n\n');
+}
+
+function compareNow(){
+  const userText = document.getElementById('userText').value.trim();
+  const goldText = getSelectedGoldText();
+
+  if(!goldText){
+    alert('請先選擇要對答案的段落！');
+    return;
+  }
+
+  const hasNonScripture = document.getElementById('hasNonScripture').checked;
+  const result = compareBlocks(userText, goldText, {hasNonScripture});
+
+  document.getElementById('userView').innerHTML = result.userHtml;
+  document.getElementById('stdView').innerHTML = result.stdHtml;
+  document.getElementById('hints').innerHTML = result.hintsHtml;
+
+  document.getElementById('stats').textContent = 
+    result.stats.scriptureErrors > 0 ? `經文錯處：約 ${result.stats.scriptureErrors} 處` : '經文錯處：0';
+
+  logRecord(userText, goldText, result.stats);
+}
+
+// 其他函數（resetAll, toggleStd, makeFill, exportCSV 等）
+function resetAll(){
+  document.getElementById('userText').value = '';
+  document.getElementById('userView').innerHTML = '';
+  document.getElementById('stdView').innerHTML = '';
+  document.getElementById('hints').innerHTML = '';
+  document.getElementById('stats').textContent = '';
+}
+
+let stdShown = true;
+function toggleStd(){
+  stdShown = !stdShown;
+  const el = document.getElementById('stdView').parentElement.parentElement;
+  el.style.display = stdShown ? '' : 'none';
+}
+
+function makeFill(){
+  const gold = getSelectedGoldText();
+  if(!gold.trim()){ alert('請先選擇標準答案段落'); return; }
+  // 移除標題行後再出題
+  const cleanGold = gold.split('\n').slice(1).join('\n');
+  const lines = cleanGold.split(/(?:\r?\n)+/).filter(s=>s.trim()!=='');
+  const line = lines[Math.floor(Math.random()*lines.length)] || cleanGold;
+  // 後續填充題邏輯保持不變（略）
+  alert('填充題功能已簡化，可自行擴充');
+}
+
+function clearQuiz(){ document.getElementById('hints').innerHTML = ''; }
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+const records=[];
+function logRecord(userText, goldText, stats){
+  records.push({ ts: new Date().toISOString(), userLen: userText.length, goldLen: goldText.length, scriptureErrors: stats.scriptureErrors || 0 });
+}
+function exportCSV(){
+  if(!records.length){ alert('尚無練習紀錄'); return; }
+  const header = ['ts','userLen','goldLen','scriptureErrors'];
+  const rows = [header.join(',')].concat(records.map(r=>header.map(k=>r[k]).join(',')));
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='practice_log.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ==================== 初始化 ====================
+window.onload = function(){
+  const select = document.getElementById('sectionSelect');
+  Object.keys(standardContent).forEach(key => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = key;
+    select.appendChild(option);
+  });
+};
+</script>
+</body>
+</html>
