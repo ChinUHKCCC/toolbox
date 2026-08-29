@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CryptoJS AES Online Tool</title>
+
+  <!-- Use local W3.CSS and the light-blue theme file -->
+  <link rel="stylesheet" href="w3.css">
+  <link rel="stylesheet" href="w3-theme-light-blue.css">
+
+  <!-- Keep CryptoJS from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="w3-light-grey">
+
+  <div class="w3-content" style="max-width:900px; margin:24px auto;">
+    <div class="w3-card-4 w3-white w3-padding">
+
+      <header class="w3-container w3-theme-light-blue w3-padding-small w3-margin-bottom">
+        <h1 class="w3-xlarge w3-text-white" style="margin:0">CryptoJS AES — Encrypt / Decrypt (browser)</h1>
+        <p class="w3-small w3-text-white" style="margin:0">This demo performs AES entirely in the browser using CryptoJS. Choose simple or advanced mode below.</p>
+      </header>
+
+      <div class="w3-container">
+        <label for="plaintext" class="w3-text-dark-grey w3-margin-top">Plaintext</label>
+        <textarea id="plaintext" class="w3-input w3-border" placeholder="Type a message to encrypt..." style="min-height:120px;"></textarea>
+
+        <label for="password" class="w3-text-dark-grey w3-margin-top">Password / Passphrase</label>
+        <input id="password" class="w3-input w3-border" type="password" placeholder="Enter a password (used as key material)">
+
+        <p class="w3-margin-top">
+          <label>
+            <input id="modeAdvanced" class="w3-check" type="checkbox"> <span class="w3-text-dark-grey">Advanced (PBKDF2 + random IV)</span>
+          </label>
+        </p>
+
+        <div class="w3-row w3-margin-top w3-margin-bottom controls">
+          <div class="w3-col s12 m12 l12">
+            <button id="encryptBtn" class="w3-button w3-blue">Encrypt →</button>
+            <button id="decryptBtn" class="w3-button w3-light-blue">← Decrypt</button>
+            <button id="clearBtn" class="w3-button w3-light-gray">Clear</button>
+            <button id="copyCipherBtn" class="w3-button w3-light-gray">Copy Ciphertext</button>
+          </div>
+        </div>
+
+        <label for="ciphertext" class="w3-text-dark-grey">Ciphertext (copy/share/store)</label>
+        <textarea id="ciphertext" class="w3-input w3-border" placeholder="Encrypted output appears here..." style="min-height:120px;"></textarea>
+
+        <div class="w3-panel w3-light-grey w3-leftbar w3-border-blue w3-margin-top">
+          <strong>Modes explained:</strong>
+          <ul>
+            <li><strong>Simple mode</strong>: CryptoJS uses a passphrase-based OpenSSL-style derivation (convenient for demos).</li>
+            <li><strong>Advanced mode</strong>: Derives a 256-bit key with PBKDF2, uses a random IV and includes salt+iv in the output JSON (recommended if you need better control).</li>
+          </ul>
+        </div>
+
+        <div class="w3-small w3-text-grey w3-margin-top">
+          Security notes: Client-side encryption is suitable for demos and some privacy use-cases but be careful for production secrets. Use strong, high-entropy passwords, and prefer Web Crypto API for production-grade implementations. Never trust code served from third-party CDNs in sensitive apps unless you vendor/serve the script yourself.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Elements
+    const plaintextEl = document.getElementById('plaintext');
+    const ciphertextEl = document.getElementById('ciphertext');
+    const passwordEl = document.getElementById('password');
+    const encryptBtn = document.getElementById('encryptBtn');
+    const decryptBtn = document.getElementById('decryptBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const copyCipherBtn = document.getElementById('copyCipherBtn');
+    const modeAdvanced = document.getElementById('modeAdvanced');
+
+    // Simple mode: CryptoJS.AES.encrypt with passphrase
+    function simpleEncrypt(plain, pass) {
+      // Returns base64-ish OpenSSL-compatible string (includes salt)
+      return CryptoJS.AES.encrypt(plain, pass).toString();
+    }
+    function simpleDecrypt(cipherStr, pass) {
+      const bytes = CryptoJS.AES.decrypt(cipherStr, pass);
+      return bytes.toString(CryptoJS.enc.Utf8);
+    }
+
+    // Advanced mode: PBKDF2 key derivation + random IV; output JSON {ct, iv, s}
+    function advancedEncrypt(plain, pass) {
+      const salt = CryptoJS.lib.WordArray.random(128/8); // 16 bytes
+      const iv = CryptoJS.lib.WordArray.random(128/8);   // 16 bytes
+      const key = CryptoJS.PBKDF2(pass, salt, { keySize: 256/32, iterations: 10000 }); // 256-bit key
+      // Encrypt using derived key and IV; produce base64 ciphertext
+      const encrypted = CryptoJS.AES.encrypt(plain, key, { iv: iv });
+      const ctBase64 = encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+      const out = {
+        ct: ctBase64,
+        iv: iv.toString(CryptoJS.enc.Hex),
+        s: salt.toString(CryptoJS.enc.Hex),
+        iter: 10000,
+        kdf: "PBKDF2",
+        alg: "AES-CBC-256"
+      };
+      return JSON.stringify(out);
+    }
+
+    function advancedDecrypt(jsonStr, pass) {
+      let obj;
+      try { obj = JSON.parse(jsonStr); } catch(e) { throw new Error("Ciphertext is not valid JSON for advanced mode."); }
+      const salt = CryptoJS.enc.Hex.parse(obj.s);
+      const iv = CryptoJS.enc.Hex.parse(obj.iv);
+      const iterations = obj.iter || 10000;
+      const key = CryptoJS.PBKDF2(pass, salt, { keySize: 256/32, iterations: iterations });
+      // Reconstruct ciphertext WordArray from base64
+      const ctWA = CryptoJS.enc.Base64.parse(obj.ct);
+      const cipherParams = CryptoJS.lib.CipherParams.create({ ciphertext: ctWA });
+      const decrypted = CryptoJS.AES.decrypt(cipherParams, key, { iv: iv });
+      return decrypted.toString(CryptoJS.enc.Utf8);
+    }
+
+    // UI actions
+    encryptBtn.addEventListener('click', () => {
+      const plain = plaintextEl.value;
+      const pass = passwordEl.value || "";
+      if (!plain) { alert('Enter plaintext to encrypt.'); return; }
+      if (!pass) { if (!confirm('No password entered — proceed with empty passphrase?')) return; }
+      try {
+        const out = modeAdvanced.checked ? advancedEncrypt(plain, pass) : simpleEncrypt(plain, pass);
+        ciphertextEl.value = out;
+      } catch (e) {
+        alert('Encryption error: ' + e.message);
+      }
+    });
+
+    decryptBtn.addEventListener('click', () => {
+      const cipher = ciphertextEl.value;
+      const pass = passwordEl.value || "";
+      if (!cipher) { alert('Enter ciphertext to decrypt.'); return; }
+      try {
+        const plain = modeAdvanced.checked ? advancedDecrypt(cipher, pass) : simpleDecrypt(cipher, pass);
+        if (!plain) throw new Error('Wrong password or corrupt ciphertext (result empty).');
+        plaintextEl.value = plain;
+      } catch (e) {
+        alert('Decryption failed: ' + e.message);
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      plaintextEl.value = "";
+      ciphertextEl.value = "";
+      passwordEl.value = "";
+    });
+
+    copyCipherBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(ciphertextEl.value);
+        copyCipherBtn.textContent = 'Copied!';
+        setTimeout(() => copyCipherBtn.textContent = 'Copy Ciphertext', 1200);
+      } catch (e) {
+        alert('Copy failed: ' + e.message);
+      }
+    });
+
+    // Keyboard shortcuts: Ctrl+Enter to encrypt
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        encryptBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
